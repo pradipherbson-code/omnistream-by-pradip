@@ -38,6 +38,7 @@ def get_ydl_base_opts(fallback_client: bool = False) -> Dict[str, Any]:
         "ffmpeg_location": FFMPEG_PATH,
         "socket_timeout": 20,
         "retries": 5,
+        "ignore_no_formats_error": True,
         "remote_components": ["ejs:github"],
     }
 
@@ -124,14 +125,14 @@ def extract_media_info(url: str, requested_platform: Optional[str] = None) -> Di
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(clean_url, download=False)
         except Exception as first_err:
-            err_str = str(first_err).lower()
-            if any(k in err_str for k in ["sign in", "not a bot", "bot", "sabr", "429"]):
-                # Fallback to Android/iOS client which bypasses bot challenges
+            # Automatic fallback to Android/VisionOS mobile engine
+            try:
                 fb_opts = get_ydl_base_opts(fallback_client=True)
                 fb_opts["skip_download"] = True
+                fb_opts["ignore_no_formats_error"] = True
                 with yt_dlp.YoutubeDL(fb_opts) as ydl:
                     info = ydl.extract_info(clean_url, download=False)
-            else:
+            except Exception:
                 raise first_err
 
         if not info:
@@ -358,11 +359,11 @@ def perform_download(
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 meta = ydl.extract_info(clean_download_url, download=True)
         except Exception as first_dl_err:
-            err_str = str(first_dl_err).lower()
-            if any(k in err_str for k in ["sign in", "not a bot", "bot", "sabr", "429"]):
-                # Retry download with Android/iOS fallback client
+            try:
+                # Retry download with Android/VisionOS fallback client
                 fb_opts = get_ydl_base_opts(fallback_client=True)
                 fb_opts["outtmpl"] = out_template
+                fb_opts["ignore_no_formats_error"] = True
                 if is_audio:
                     bitrate = "320" if "320" in quality else "192"
                     fb_opts["format"] = "bestaudio/best"
@@ -373,11 +374,11 @@ def perform_download(
                     }]
                 else:
                     fb_opts["merge_output_format"] = "mp4"
-                    fb_opts["format"] = "best/bestvideo+bestaudio"
+                    fb_opts["format"] = "best/bestvideo+bestaudio/best"
 
                 with yt_dlp.YoutubeDL(fb_opts) as ydl:
                     meta = ydl.extract_info(clean_download_url, download=True)
-            else:
+            except Exception:
                 raise first_dl_err
 
         title = custom_title or (meta.get("title") if meta else "media")
