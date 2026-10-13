@@ -53,18 +53,18 @@ def get_ydl_base_opts(fallback_client: bool = False) -> Dict[str, Any]:
             break
 
     if fallback_client:
-        # Client that bypasses "Sign in to confirm you're not a bot"
+        # Strictly TV and mobile clients that bypass datacenter "Sign in to confirm you're not a bot"
         opts["extractor_args"] = {
             "youtube": {
-                "player_client": ["android", "ios", "mweb"],
+                "player_client": ["tv_downgraded", "visionos", "android", "ios"],
                 "player_skip": ["webpage", "configs"]
             }
         }
     else:
-        # Robust multi-client list
+        # Robust multi-client list prioritizing TV & VisionOS which avoid bot challenges
         opts["extractor_args"] = {
             "youtube": {
-                "player_client": ["web", "tv_embedded", "android", "ios", "mweb"]
+                "player_client": ["tv_downgraded", "visionos", "android", "ios", "mweb", "web"]
             }
         }
 

@@ -1,9 +1,10 @@
 # Full-Stack OmniStream Media Downloader Dockerfile
 FROM python:3.12-slim
 
-# Install system dependencies including FFmpeg and curl
+# Install system dependencies including FFmpeg, Node.js and curl
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
+    nodejs \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
