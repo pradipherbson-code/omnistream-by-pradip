@@ -41,16 +41,36 @@ def get_ydl_base_opts(fallback_client: bool = False) -> Dict[str, Any]:
         "remote_components": ["ejs:github"],
     }
 
-    # Auto-load cookies.txt if present
-    cookie_paths = [
-        Path(__file__).resolve().parent.parent / "cookies.txt",
-        Path(__file__).resolve().parent / "cookies.txt",
-        Path.cwd() / "cookies.txt"
-    ]
-    for cp in cookie_paths:
-        if cp.exists():
-            opts["cookiefile"] = str(cp)
-            break
+    # Auto-load cookies from Environment Variable (Render / Cloud VPS) or file
+    cookie_file_path = None
+    env_cookies = os.environ.get("YOUTUBE_COOKIES")
+    if env_cookies and env_cookies.strip():
+        try:
+            import tempfile
+            # If base64 encoded, decode it
+            import base64
+            cookie_text = env_cookies.strip()
+            if cookie_text.startswith("base64:"):
+                cookie_text = base64.b64decode(cookie_text[7:]).decode("utf-8")
+            tmp = Path(tempfile.gettempdir()) / "yt_cookies.txt"
+            tmp.write_text(cookie_text, encoding="utf-8")
+            cookie_file_path = str(tmp)
+        except Exception:
+            pass
+
+    if not cookie_file_path:
+        cookie_paths = [
+            Path(__file__).resolve().parent.parent / "cookies.txt",
+            Path(__file__).resolve().parent / "cookies.txt",
+            Path.cwd() / "cookies.txt"
+        ]
+        for cp in cookie_paths:
+            if cp.exists() and cp.stat().st_size > 0:
+                cookie_file_path = str(cp)
+                break
+
+    if cookie_file_path:
+        opts["cookiefile"] = cookie_file_path
 
     if fallback_client:
         # Strictly TV and mobile clients that bypass datacenter "Sign in to confirm you're not a bot"
