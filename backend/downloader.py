@@ -73,18 +73,18 @@ def get_ydl_base_opts(fallback_client: bool = False) -> Dict[str, Any]:
         opts["cookiefile"] = cookie_file_path
 
     if fallback_client:
-        # Strictly TV and mobile clients that bypass datacenter "Sign in to confirm you're not a bot"
+        # Strictly mobile clients that bypass bot challenges
         opts["extractor_args"] = {
             "youtube": {
-                "player_client": ["tv_downgraded", "visionos", "android", "ios"],
+                "player_client": ["android", "visionos", "mweb"],
                 "player_skip": ["webpage", "configs"]
             }
         }
     else:
-        # Robust multi-client list prioritizing TV & VisionOS which avoid bot challenges
+        # Golden stable clients: visionos provides 1080p/720p/MP3 without bot check or page reload
         opts["extractor_args"] = {
             "youtube": {
-                "player_client": ["tv_downgraded", "visionos", "android", "ios", "mweb", "web"]
+                "player_client": ["visionos", "android", "mweb"]
             }
         }
 
