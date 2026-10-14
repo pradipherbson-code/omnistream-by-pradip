@@ -74,18 +74,17 @@ def get_ydl_base_opts(fallback_client: bool = False) -> Dict[str, Any]:
         opts["cookiefile"] = cookie_file_path
 
     if fallback_client:
-        # Strictly mobile clients that bypass bot challenges
+        # Fallback to embedded/tv/visionos clients that bypass bot challenges and SABR restrictions
         opts["extractor_args"] = {
             "youtube": {
-                "player_client": ["android", "visionos", "mweb"],
-                "player_skip": ["webpage", "configs"]
+                "player_client": ["web_embedded", "tv_downgraded", "visionos"]
             }
         }
     else:
-        # Golden stable clients: visionos provides 1080p/720p/MP3 without bot check or page reload
+        # Golden stable clients: web_embedded and visionos provide full 1080p/720p/MP3 without SABR/PO-token warnings or bot checks
         opts["extractor_args"] = {
             "youtube": {
-                "player_client": ["visionos", "android", "mweb"]
+                "player_client": ["web_embedded", "visionos", "web"]
             }
         }
 
@@ -172,7 +171,8 @@ def extract_media_info(url: str, requested_platform: Optional[str] = None) -> Di
             }
 
         # Single media item
-        is_video = (
+        is_youtube = (platform == "youtube" or "youtube.com" in clean_url or "youtu.be" in clean_url)
+        is_video = is_youtube or (
             info.get("vcodec") is not None and info.get("vcodec") != "none"
         ) or (
             any(f.get("vcodec") not in (None, "none") for f in info.get("formats", []))
@@ -183,8 +183,8 @@ def extract_media_info(url: str, requested_platform: Optional[str] = None) -> Di
         author = info.get("uploader") or info.get("channel") or info.get("creator") or f"{platform.capitalize()} Creator"
         duration = info.get("duration")
 
-        # Check for direct image or single photo post
-        if not is_video and thumbnail:
+        # Check for direct image or single photo post (NEVER for YouTube or videos)
+        if not is_youtube and not is_video and thumbnail:
             return {
                 "success": True,
                 "platform": platform,
@@ -374,7 +374,13 @@ def perform_download(
                     }]
                 else:
                     fb_opts["merge_output_format"] = "mp4"
-                    fb_opts["format"] = "best/bestvideo+bestaudio/best"
+                    if quality.startswith("res_"):
+                        h = quality.replace("res_", "")
+                        fb_opts["format"] = f"bestvideo[height<={h}]+bestaudio/best[height<={h}]/best"
+                    elif quality in ("1080", "720", "480", "360"):
+                        fb_opts["format"] = f"bestvideo[height<={quality}]+bestaudio/best[height<={quality}]/best"
+                    else:
+                        fb_opts["format"] = "bestvideo+bestaudio/best"
 
                 with yt_dlp.YoutubeDL(fb_opts) as ydl:
                     meta = ydl.extract_info(clean_download_url, download=True)

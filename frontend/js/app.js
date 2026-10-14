@@ -274,7 +274,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!data) return;
     resultsContainer.classList.remove("hidden");
 
-    const isVideo = data.is_video;
+    const isVideo = Boolean(data.is_video || (data.formats && data.formats.some(f => f.type === "video")) || (data.platform === "youtube"));
     const isCarousel = data.media_type === "carousel" || data.media_type === "gallery";
     const formats = data.formats || [];
 
@@ -305,7 +305,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Video Options HTML
     let videoSectionHtml = "";
-    if (isVideo && videoFormats.length > 0 && (state.selectedMode === "all" || state.selectedMode === "video")) {
+    if ((isVideo || videoFormats.length > 0) && (state.selectedMode === "all" || state.selectedMode === "video")) {
       videoSectionHtml = `
         <div class="p-5 rounded-2xl bg-slate-900/80 border border-slate-800/90 mb-5">
           <div class="flex items-center justify-between mb-4">
@@ -350,7 +350,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Audio / MP3 Section HTML
     let audioSectionHtml = "";
-    if (isVideo && (state.selectedMode === "all" || state.selectedMode === "audio")) {
+    if ((isVideo || audioFormats.length > 0) && (state.selectedMode === "all" || state.selectedMode === "audio")) {
       audioSectionHtml = `
         <div class="p-5 rounded-2xl bg-gradient-to-br from-fuchsia-950/20 via-slate-900/90 to-purple-950/20 border border-fuchsia-500/30 mb-5 relative overflow-hidden">
           <div class="flex items-center justify-between mb-4">
@@ -421,7 +421,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Images / Gallery / Carousel HTML
     let imageSectionHtml = "";
     const hasMultipleItems = data.items && data.items.length > 1;
-    const isSingleImage = !isVideo || (data.media_type === "image");
+    const isSingleImage = !isVideo && (data.media_type === "image");
 
     if (hasMultipleItems && (state.selectedMode === "all" || state.selectedMode === "image")) {
       imageSectionHtml = `
@@ -491,6 +491,36 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
     }
 
+    // Video Cover / HD Thumbnail Section
+    let thumbnailSectionHtml = "";
+    if (isVideo && data.thumbnail && (state.selectedMode === "all" || state.selectedMode === "image")) {
+      thumbnailSectionHtml = `
+        <div class="p-5 rounded-2xl bg-gradient-to-br from-amber-950/20 via-slate-900/90 to-orange-950/20 border border-amber-500/30 mb-5">
+          <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <div class="flex items-center gap-3">
+              <div class="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                <i data-lucide="image" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <h4 class="font-extrabold text-slate-100 text-lg">Cover / Thumbnail Photo</h4>
+                <p class="text-xs text-slate-400">Download high-definition video cover image</p>
+              </div>
+            </div>
+            <button 
+              class="download-btn px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-sm flex items-center gap-2 shadow-lg shadow-amber-950/50 transition transform hover:-translate-y-0.5 active:translate-y-0"
+              data-type="image"
+              data-item-index="0"
+              data-image-url="${data.thumbnail}"
+              data-title="${escapeHtml(data.title)}_thumbnail"
+            >
+              <i data-lucide="download" class="w-4 h-4"></i>
+              Download Thumbnail (HD)
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
     // Assemble final container HTML
     resultsContainer.innerHTML = `
       <div class="glass-panel p-6 sm:p-8 rounded-3xl animate-fadeIn">
@@ -532,9 +562,10 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
 
         <!-- Download Action Sections -->
-        ${audioSectionHtml}
         ${videoSectionHtml}
+        ${audioSectionHtml}
         ${imageSectionHtml}
+        ${thumbnailSectionHtml}
 
         <!-- Download Progress Toast Modal / Banner -->
         <div id="download-progress-banner" class="hidden mt-4 p-4 rounded-xl bg-indigo-950/80 border border-indigo-500/50 flex items-center gap-3">
@@ -557,11 +588,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const quality = btn.getAttribute("data-quality") || "best";
         const title = btn.getAttribute("data-title") || data.title;
         const itemIdx = btn.getAttribute("data-item-index");
-        let imageUrl = null;
-        if (itemIdx !== null && data.items && data.items[parseInt(itemIdx)]) {
+        let imageUrl = btn.getAttribute("data-image-url") || null;
+        if (!imageUrl && itemIdx !== null && data.items && data.items[parseInt(itemIdx)]) {
           imageUrl = data.items[parseInt(itemIdx)].url;
-        } else {
-          imageUrl = btn.getAttribute("data-image-url") || (data.thumbnail || null);
+        }
+        if (!imageUrl) {
+          imageUrl = data.thumbnail || null;
         }
         triggerFileDownload({ type, quality, title, imageUrl });
       });
