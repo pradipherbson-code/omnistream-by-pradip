@@ -36,9 +36,8 @@ def get_ydl_base_opts(fallback_client: bool = False) -> Dict[str, Any]:
         "no_warnings": True,
         "noplaylist": True,
         "ffmpeg_location": FFMPEG_PATH,
-        "socket_timeout": 20,
+        "socket_timeout": 25,
         "retries": 5,
-        "ignore_no_formats_error": True,
         "remote_components": ["ejs:github"],
     }
 
@@ -74,17 +73,10 @@ def get_ydl_base_opts(fallback_client: bool = False) -> Dict[str, Any]:
         opts["cookiefile"] = cookie_file_path
 
     if fallback_client:
-        # Fallback to embedded/tv/visionos clients that bypass bot challenges and SABR restrictions
+        # Fallback to mobile android / tv clients if default extraction fails
         opts["extractor_args"] = {
             "youtube": {
-                "player_client": ["web_embedded", "tv_downgraded", "visionos"]
-            }
-        }
-    else:
-        # Golden stable clients: web_embedded and visionos provide full 1080p/720p/MP3 without SABR/PO-token warnings or bot checks
-        opts["extractor_args"] = {
-            "youtube": {
-                "player_client": ["web_embedded", "visionos", "web"]
+                "player_client": ["android", "tv_downgraded"]
             }
         }
 
@@ -347,7 +339,7 @@ def perform_download(
         if quality.startswith("res_"):
             height = quality.replace("res_", "")
             ydl_opts["format"] = f"bestvideo[height<={height}]+bestaudio/best[height<={height}]/best"
-        elif quality in ("1080", "720", "480", "360"):
+        elif quality in ("2160", "1440", "1080", "720", "480", "360", "240"):
             ydl_opts["format"] = f"bestvideo[height<={quality}]+bestaudio/best[height<={quality}]/best"
         else:
             ydl_opts["format"] = "bestvideo+bestaudio/best"
@@ -360,10 +352,9 @@ def perform_download(
                 meta = ydl.extract_info(clean_download_url, download=True)
         except Exception as first_dl_err:
             try:
-                # Retry download with Android/VisionOS fallback client
+                # Retry download with mobile Android / TV fallback client
                 fb_opts = get_ydl_base_opts(fallback_client=True)
                 fb_opts["outtmpl"] = out_template
-                fb_opts["ignore_no_formats_error"] = True
                 if is_audio:
                     bitrate = "320" if "320" in quality else "192"
                     fb_opts["format"] = "bestaudio/best"
@@ -377,7 +368,7 @@ def perform_download(
                     if quality.startswith("res_"):
                         h = quality.replace("res_", "")
                         fb_opts["format"] = f"bestvideo[height<={h}]+bestaudio/best[height<={h}]/best"
-                    elif quality in ("1080", "720", "480", "360"):
+                    elif quality in ("2160", "1440", "1080", "720", "480", "360", "240"):
                         fb_opts["format"] = f"bestvideo[height<={quality}]+bestaudio/best[height<={quality}]/best"
                     else:
                         fb_opts["format"] = "bestvideo+bestaudio/best"
