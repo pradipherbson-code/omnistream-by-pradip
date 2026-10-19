@@ -160,3 +160,25 @@ if FRONTEND_DIR.exists():
     @app.get("/")
     def serve_index():
         return FileResponse(str(FRONTEND_DIR / "index.html"))
+
+@app.get("/api/debug-youtube")
+def debug_youtube(url: str = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"):
+    import yt_dlp
+    results = {"yt_dlp_version": yt_dlp.version.__version__, "clients": {}}
+    for client in ["default", "web_embedded", "android", "ios", "mweb", "tv_downgraded"]:
+        opts = {"quiet": True, "no_warnings": False}
+        if client != "default":
+            opts["extractor_args"] = {"youtube": {"player_client": [client]}}
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                fmts = info.get("formats", [])
+                v_fmts = [f for f in fmts if f.get("vcodec") not in (None, "none")]
+                results["clients"][client] = {
+                    "total": len(fmts),
+                    "video": len(v_fmts),
+                    "sample": [{"id": f.get("format_id"), "ext": f.get("ext"), "vcodec": f.get("vcodec"), "url": bool(f.get("url"))} for f in fmts[:3]]
+                }
+        except Exception as e:
+            results["clients"][client] = {"error": str(e)}
+    return results
