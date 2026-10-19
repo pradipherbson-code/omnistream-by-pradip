@@ -653,15 +653,63 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       if (statusText) statusText.textContent = "Download completed! Check your downloads.";
-      setTimeout(() => {
-        if (banner) banner.classList.add("hidden");
-      }, 3000);
     } catch (err) {
-      alert("Download error: " + (err.message || "Could not process media stream."));
       if (banner) banner.classList.add("hidden");
+      showDownloadErrorModal(err.message || "Could not process media stream.");
     } finally {
       state.isDownloading = false;
     }
+  }
+
+  function showDownloadErrorModal(errMsg) {
+    const isCloudDatacenterIssue = errMsg.includes("reloaded") || errMsg.includes("No video formats") || errMsg.includes("bot") || errMsg.includes("Sign in");
+    
+    const existing = document.getElementById("download-error-modal");
+    if (existing) existing.remove();
+
+    const modal = document.createElement("div");
+    modal.id = "download-error-modal";
+    modal.className = "fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn";
+    modal.innerHTML = `
+      <div class="bg-slate-900 border ${isCloudDatacenterIssue ? 'border-amber-500/50' : 'border-red-500/50'} rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl relative text-left">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="p-3 rounded-2xl ${isCloudDatacenterIssue ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'}">
+            <i data-lucide="${isCloudDatacenterIssue ? 'shield-alert' : 'alert-circle'}" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white">${isCloudDatacenterIssue ? 'Cloud Hosting Limit' : 'Download Error'}</h3>
+            <p class="text-xs text-slate-400">${isCloudDatacenterIssue ? 'YouTube Datacenter Protection' : 'Stream processing failed'}</p>
+          </div>
+        </div>
+
+        <p class="text-sm text-slate-300 leading-relaxed mb-4">
+          ${isCloudDatacenterIssue 
+            ? 'YouTube blocks anonymous video downloads directly from cloud datacenters (Render). For instant, high-speed 1080p/4K downloads, use our direct Cloudflare Live link or configure cookies.' 
+            : escapeHtml(errMsg)}
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-2.5 pt-2">
+          ${isCloudDatacenterIssue ? `
+            <a href="https://jesse-guam-citysearch-lined.trycloudflare.com" target="_blank" class="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold text-sm text-center shadow-lg transition">
+              Open Cloudflare Live Link 🚀
+            </a>
+          ` : ''}
+          <button id="close-download-error-modal" class="py-3 px-5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm transition">
+            Close
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    if (window.lucide) window.lucide.createIcons();
+
+    document.getElementById("close-download-error-modal").addEventListener("click", () => {
+      modal.remove();
+    });
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) modal.remove();
+    });
   }
 
   // Helpers
